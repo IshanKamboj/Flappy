@@ -1,7 +1,9 @@
 from itertools import cycle
+from operator import ge
 import random
+from re import X
 import sys
-
+import pickle
 import pygame
 from pygame.locals import *
 
@@ -13,7 +15,8 @@ PIPEGAPSIZE  = 110 # gap between upper and lower part of pipe
 BASEY        = SCREENHEIGHT * 0.79
 # image, sound and hitmask  dicts
 IMAGES, SOUNDS, HITMASKS = {}, {}, {}
-
+CROWNWIDTH = 40
+CROWNHEIGHT = 34
 # list of all possible players (tuple of 3 positions of flap)
 PLAYERS_LIST = (
     # red bird
@@ -76,14 +79,19 @@ def main():
         pygame.image.load('assets/sprites/8.png').convert_alpha(),
         pygame.image.load('assets/sprites/9.png').convert_alpha()
     )
-
+    try:
+        getHighscore()
+    except:
+        with open('highscore.dat','wb') as f:
+            x = pickle.dump(1,f)
     # game over sprite
     IMAGES['gameover'] = pygame.image.load('assets/sprites/gameover.png').convert_alpha()
     # message sprite for welcome screen
     IMAGES['message'] = pygame.image.load('assets/sprites/message.png').convert_alpha()
     # base (ground) sprite
     IMAGES['base'] = pygame.image.load('assets/sprites/base.png').convert_alpha()
-
+    IMAGES['crown'] = pygame.image.load('assets/sprites/crown.png').convert_alpha()
+    
     # sounds
     if 'win' in sys.platform:
         soundExt = '.wav'
@@ -241,6 +249,12 @@ def mainGame(movementInfo):
         crashTest = checkCrash({'x': playerx, 'y': playery, 'index': playerIndex},
                                upperPipes, lowerPipes)
         if crashTest[0]:
+            try:
+                if score > getHighscore():
+                    writeHighscore(score)
+                
+            except:
+                writeHighscore(score)
             return {
                 'y': playery,
                 'groundCrash': crashTest[1],
@@ -251,7 +265,11 @@ def mainGame(movementInfo):
                 'playerVelY': playerVelY,
                 'playerRot': playerRot
             }
-
+        try:
+            if score > getHighscore():
+                writeHighscore(score)
+        except:
+            pass
         # check for score
         playerMidPos = playerx + IMAGES['player'][0].get_width() / 2
         for pipe in upperPipes:
@@ -413,7 +431,18 @@ def showScore(score):
     """displays score in center of screen"""
     scoreDigits = [int(x) for x in list(str(score))]
     totalWidth = 0 # total width of all numbers to be printed
-
+    # SHOW HIGH SCORE
+    highscoreDigits = [int(x) for x in list(str(getHighscore()))]
+    totalWidth2 = 0
+    crownWidth = pygame.transform.scale(IMAGES['crown'],(CROWNWIDTH,CROWNHEIGHT)).get_width()
+    coffset = (SCREENWIDTH - crownWidth)*0.03
+    SCREEN.blit(pygame.transform.scale(IMAGES['crown'],(CROWNWIDTH,CROWNHEIGHT)), (coffset, SCREENHEIGHT * 0.88))
+    for digit in highscoreDigits:
+        totalWidth2 += IMAGES['numbers'][digit].get_width()
+    Xoffset2 = (SCREENWIDTH - totalWidth2)*0.21
+    for digit in highscoreDigits:
+        SCREEN.blit(IMAGES['numbers'][digit], (Xoffset2, SCREENHEIGHT * 0.88))
+        Xoffset2 += IMAGES['numbers'][digit].get_width()
     for digit in scoreDigits:
         totalWidth += IMAGES['numbers'][digit].get_width()
 
@@ -483,6 +512,13 @@ def getHitmask(image):
         for y in xrange(image.get_height()):
             mask[x].append(bool(image.get_at((x,y))[3]))
     return mask
-
+def getHighscore():
+    with open('highscore.dat','rb') as f:
+        x = pickle.load(f)
+    return x
+def writeHighscore(score):
+    with open('highscore.dat','wb') as f:
+        x = pickle.dump(score,f)
+    #print('high score dumped')
 if __name__ == '__main__':
     main()
